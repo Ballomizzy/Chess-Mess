@@ -4,7 +4,9 @@ using UnityEngine;
 
 public class PiecesManager : MonoBehaviour
 {
-    //[Header("Graphics")]
+    [SerializeField]
+    public Transform BlackPiecesContainer, WhitePiecesContainer;
+    [Space]
     public GameObject BlackJailGO;
     public GameObject WhiteJailGO;
 
@@ -118,6 +120,7 @@ public class PiecesManager : MonoBehaviour
                 default:
                     break;
             }
+            pieceToInstantiate.transform.SetParent(BlackPiecesContainer);
             if(pieceToInstantiate.GetComponent<PieceController>() != null)
             {
                 pieceController = pieceToInstantiate.GetComponent<PieceController>();
@@ -205,7 +208,8 @@ public class PiecesManager : MonoBehaviour
                 default:
                     break;
             }
-            if(pieceToInstantiate.GetComponent<PieceController>() != null)
+            pieceToInstantiate.transform.SetParent(WhitePiecesContainer);
+            if (pieceToInstantiate.GetComponent<PieceController>() != null)
             {
                 pieceController = pieceToInstantiate.GetComponent<PieceController>();
                 pieceController.InitPiece(newPiece);
@@ -221,7 +225,7 @@ public class PiecesManager : MonoBehaviour
         for(int i = 0; i < BlackPieces.Count; i++)
         {
             BoardPosition boardTile = BoardManager.GetBoardTile(BlackPieces[i].startPosition);
-            boardTile.OccupyBoardTile(PieceColor.Black, BlackPieces[i].controller);
+            boardTile.OccupyBoardTile(PieceColor.Black, BlackPieces[i].pieceType, BlackPieces[i].controller);
 
             Vector3 boardTilePos = boardTile.transform.position;
             BlackPieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
@@ -230,12 +234,28 @@ public class PiecesManager : MonoBehaviour
         for(int i = 0; i < WhitePieces.Count; i++)
         {
             BoardPosition boardTile = BoardManager.GetBoardTile(WhitePieces[i].startPosition);
-            boardTile.OccupyBoardTile(PieceColor.White, WhitePieces[i].controller);
+            boardTile.OccupyBoardTile(PieceColor.White, WhitePieces[i].pieceType, WhitePieces[i].controller);
 
             Vector3 boardTilePos = boardTile.transform.position;  
             WhitePieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
         }
     }
+    
+    public void SetColorOnCheck(PieceColor color)
+    {
+        switch (color)
+        {
+            case PieceColor.White:
+                WhitePiecesContainer.GetComponent<ColorPiecesManager>().SetKingCheckStatus(true);
+                break;
+            case PieceColor.Black:
+                BlackPiecesContainer.GetComponent<ColorPiecesManager>().SetKingCheckStatus(true);
+                break;
+            default:
+                break;
+        }
+    }
+
 }
 public enum PiecesType
 {

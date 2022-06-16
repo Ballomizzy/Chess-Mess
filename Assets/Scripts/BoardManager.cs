@@ -10,7 +10,10 @@ public class BoardManager : MonoBehaviour
     GameObject boardPositionGameObject,
                tileSelectGameObject,
                tileHighlightGameObject,
-               captureTileGameObject;
+               captureTileGameObject,
+               checkTileGameObject,
+               specialTileGameObject;
+               
     Position lastSelectedTile;
 
     public GameObject selectedTile { get; private set; }
@@ -21,6 +24,8 @@ public class BoardManager : MonoBehaviour
     
     private List<GameObject> captureTiles = new List<GameObject>();
     private List<BoardPosition> captureTilesCtrl = new List<BoardPosition>();
+
+    private GameObject checkTile;
 
     private bool tileSelected;
 
@@ -63,31 +68,71 @@ public class BoardManager : MonoBehaviour
         tileSelected = false;
         Destroy(selectedTile);
         DeHighlightTiles();
+        //Destroy(checkTile);
     }
 
-    public void HighlightTiles(Position[] tilePositions, Position[] capturePositions)
+    public void HighlightTiles(Position[] tilePositions, Position[] capturePositions, Position[] specialPositions)
     {
         DeHighlightTiles();
         if (tileSelected)
         {
             for (int i = 0; i < tilePositions.Length; i++)
             {
-                BoardPosition newTile = boardPositionCtrl[PosCharToInt(tilePositions[i].xPos) - 1, tilePositions[i].yPos - 1];
-                newTile.HighlightTile(true);
-                Vector3 newPos = newTile.transform.position;
-                highlightedTiles.Add(Instantiate(tileHighlightGameObject, newPos, Quaternion.identity));
-                highlightedTilesCtrl.Add(newTile);
+                if(tilePositions[i] != null)
+                {
+                    BoardPosition newTile = boardPositionCtrl[PosCharToInt(tilePositions[i].xPos) - 1, tilePositions[i].yPos - 1];
+                    newTile.HighlightTile(true);
+                    Vector3 newPos = newTile.transform.position;
+                    highlightedTiles.Add(Instantiate(tileHighlightGameObject, newPos, Quaternion.identity));
+                    highlightedTilesCtrl.Add(newTile);
+                    if (tilePositions[i].isCastlePosition)
+                        newTile.SetBoardPositionAsCastleSpot(true);
+                    if (tilePositions[i].isEnPassantableSpot)
+                    {
+                        newTile.SetTileAsEnPassantableSpot(true);
+                        ColorPiecesManager[] colorPiecesManagers = FindObjectsOfType<ColorPiecesManager>();
+                        foreach(ColorPiecesManager colorPieceManager in colorPiecesManagers)
+                        {
+                            colorPieceManager.HasEnpassantSpot(true);
+                        }
+                    }
+                }
             }
 
             for (int i = 0; i < capturePositions.Length; i++)
             {
-                BoardPosition newTile = boardPositionCtrl[PosCharToInt(capturePositions[i].xPos) - 1, capturePositions[i].yPos - 1];
-                newTile.MarkCaptureTile(true);
-                newTile.HighlightTile(true);
-                Vector3 newPos = newTile.transform.position;
-                captureTiles.Add(Instantiate(captureTileGameObject, newPos, Quaternion.identity));
-                captureTilesCtrl.Add(newTile);
+                if(capturePositions[i] != null)
+                {
+                    BoardPosition newTile = boardPositionCtrl[PosCharToInt(capturePositions[i].xPos) - 1, capturePositions[i].yPos - 1];
+                    newTile.MarkCaptureTile(true);
+                    newTile.HighlightTile(true);
+                    Vector3 newPos = newTile.transform.position;
+                    captureTiles.Add(Instantiate(captureTileGameObject, newPos, Quaternion.identity));
+                    captureTilesCtrl.Add(newTile);
+                    if (capturePositions[i].isEnPassantableCaptureSpot)
+                    {
+                        newTile.SetTileAsEnPassantCaptureSpot(true);
+                        ColorPiecesManager[] colorPiecesManagers = FindObjectsOfType<ColorPiecesManager>();
+                        foreach (ColorPiecesManager colorPieceManager in colorPiecesManagers)
+                        {
+                            colorPieceManager.HasEnpassantSpot(true);
+                        }
+                    }
+                }
             }
+
+            /*for (int i = 0; i < specialPositions.Length; i++)
+            {
+                if (specialPositions[i] != null)
+                {
+                    BoardPosition newTile = boardPositionCtrl[PosCharToInt(specialPositions[i].xPos) - 1, specialPositions[i].yPos - 1];
+                    //newTile.MarkCaptureTile(true);
+                    newTile.HighlightTile(true);
+                    Vector3 newPos = newTile.transform.position;
+                    captureTiles.Add(Instantiate(specialTileGameObject, newPos, Quaternion.identity));
+                    captureTilesCtrl.Add(newTile);
+                }
+            }*/
         }
     }
 
@@ -95,7 +140,18 @@ public class BoardManager : MonoBehaviour
     {   
         for(int i = 0; i < highlightedTiles.Count; i++)
         {
-            highlightedTilesCtrl[i].GetComponent<BoardPosition>().HighlightTile(false);
+            BoardPosition boardPosition = highlightedTilesCtrl[i].GetComponent<BoardPosition>();
+            boardPosition.HighlightTile(false);
+            boardPosition.SetBoardPositionAsCastleSpot(false);
+            //boardPosition.SetTileAsEnPassantableSpot(false);
+            boardPosition.SetTileAsEnPassantCaptureSpot(false);
+            ColorPiecesManager[] colorPiecesManagers = FindObjectsOfType<ColorPiecesManager>();
+            /*foreach (ColorPiecesManager colorPieceManager in colorPiecesManagers)
+            {
+                colorPieceManager.HasEnpassantSpot(false);
+            }*/
+
+
             Destroy(highlightedTiles[i]);
         }
         highlightedTiles.Clear();
@@ -111,6 +167,28 @@ public class BoardManager : MonoBehaviour
 
         captureTiles.Clear();
         captureTilesCtrl.Clear();
+    }
+
+    public void SetCheckTile(Position tilePosition, bool on)
+    {
+        if(checkTile)
+            Destroy(checkTile);
+        BoardPosition newTile = boardPositionCtrl[(PosCharToInt(tilePosition.xPos) - 1), (tilePosition.yPos) - 1];
+        Vector3 newPos = newTile.transform.position + new Vector3(0, 0.01f, 0);
+        if (on)
+        {
+            checkTile = Instantiate(checkTileGameObject, newPos, Quaternion.identity);
+        }
+        else
+        {
+            Destroy(checkTile);
+        }
+    }
+
+    public void DestroyCheckTile()
+    {
+        if (checkTile)
+            Destroy(checkTile);
     }
 
     public static BoardPosition GetBoardTile(Position position)

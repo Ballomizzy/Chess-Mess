@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class JailManager : MonoBehaviour
 {
-    [SerializeField]
-    private const float pieceSapcing = 0.35f;
+   [SerializeField]
+   private const float pieceSapcing = 0.35f;
    public void ArrangePieces()
    {
         for(int i = 0; i < transform.childCount; i++) 

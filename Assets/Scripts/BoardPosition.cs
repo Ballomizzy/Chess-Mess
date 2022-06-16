@@ -10,6 +10,9 @@ public class BoardPosition : MonoBehaviour
     private Position boardPosition;
     public bool isHighlighted { get; private set; }
     public bool isCaptureSpot { get; private set; }
+    public bool isCastleSpot { get; private set; }
+    public bool isEnPassantableSpot { get; private set; }
+    public bool isEnPassantableCaptureSpot { get; private set; }
     public void HighlightTile(bool yes)
     {
         isHighlighted = yes;
@@ -18,15 +21,29 @@ public class BoardPosition : MonoBehaviour
     {
         isCaptureSpot = yes;
     }
+    public void SetBoardPositionAsCastleSpot(bool yes)
+    {
+        isCastleSpot = yes;
+    }
+    public void SetTileAsEnPassantableSpot(bool yes)
+    {
+        isEnPassantableSpot = yes;
+    }
+    public void SetTileAsEnPassantCaptureSpot(bool yes)
+    {
+        isEnPassantableCaptureSpot = yes;
+    }
     public bool isOccupied { get; private set; } = false;
     public PieceColor occupantColor { get; private set; } = PieceColor.Empty;
+    public PiecesType occupantType { get; private set; }
     public PieceController pieceOccupant { get; private set; }
     public PieceController previousPieceOccupant { get; private set; }
 
-    public void OccupyBoardTile(PieceColor _occupanntColor, PieceController _pieceController)
+    public void OccupyBoardTile(PieceColor _occupanntColor, PiecesType _pieceType ,PieceController _pieceController)
     {
         isOccupied = true;
         occupantColor = _occupanntColor;
+        occupantType = _pieceType;
         pieceOccupant = _pieceController;
     }
     public void DeOccupyBoardTile()
@@ -36,12 +53,13 @@ public class BoardPosition : MonoBehaviour
         pieceOccupant = null;
     }
 
-
+    private GameManager gameManager;
     private Renderer rend;
 
 
     private void Awake()
     {
+        gameManager = FindObjectOfType<GameManager>();
         rend = GetComponent<Renderer>();
         boardManager = FindObjectOfType<BoardManager>();
     }
@@ -116,8 +134,52 @@ public class BoardPosition : MonoBehaviour
                 previousPieceOccupant = pieceOccupant;
             }
             isOccupied = true;
-            
-            boardManager.selectedTileCtrl.pieceOccupant.GetComponent<PieceController>().MovePiece(boardPosition, isCaptureSpot);
+
+            if (isCastleSpot)
+            {
+                int yPosForCastle = boardManager.selectedTileCtrl.pieceOccupant.GetPieceClass().piecePosition.yPos;
+                if(BoardManager.PosCharToInt(boardPosition.xPos) > 5)
+                {
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(new Position('g', yPosForCastle), false);
+                    BoardPosition rookBoardPos = BoardManager.GetBoardTile(new Position('h', yPosForCastle));
+                    rookBoardPos.pieceOccupant.MovePiece(new Position('f', yPosForCastle), false);
+                }
+                else
+                {
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(new Position('c', yPosForCastle), false);
+                    BoardPosition rookBoardPos = BoardManager.GetBoardTile(new Position('a', yPosForCastle));
+                    rookBoardPos.pieceOccupant.MovePiece(new Position('d', yPosForCastle), false);
+                }
+                pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
+                gameManager.SwitchTurn();
+            }
+            else if (isEnPassantableCaptureSpot)
+            {
+                isEnPassantableCaptureSpot = false;
+                BoardPosition aboveCaptureSpot = BoardManager.GetBoardTile(new Position(boardPosition.xPos, (boardPosition.yPos + 1)));
+                BoardPosition belowCaptureSpot = BoardManager.GetBoardTile(new Position(boardPosition.xPos, (boardPosition.yPos - 1)));
+                if (aboveCaptureSpot.isEnPassantableSpot && aboveCaptureSpot.occupantColor != occupantColor 
+                                                         && aboveCaptureSpot.occupantType == PiecesType.Pawn && aboveCaptureSpot.pieceOccupant.GetPieceClass().moves == 1)
+                {
+                    aboveCaptureSpot.pieceOccupant.GoToJail();
+                    aboveCaptureSpot.DeOccupyBoardTile();
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, false);
+                }
+                if (belowCaptureSpot.isEnPassantableSpot && belowCaptureSpot.occupantColor != occupantColor
+                                                         && belowCaptureSpot.occupantType == PiecesType.Pawn && belowCaptureSpot.pieceOccupant.GetPieceClass().moves == 1)
+                {
+                    belowCaptureSpot.pieceOccupant.GoToJail();
+                    belowCaptureSpot.DeOccupyBoardTile();
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, false);
+                }
+                pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
+            }
+            else
+            {
+                boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, isCaptureSpot);
+                pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
+            }
+            pieceOccupant.GetComponentInParent<ColorPiecesManager>().HasEnpassantSpot(false);
             boardManager.DeHighlightTiles();
             boardManager.DeSelectTile();
         }
@@ -129,6 +191,9 @@ public class Position
 {
     public char xPos;
     public int yPos;
+    public bool isCastlePosition = false,
+                isEnPassantableSpot = false,
+                isEnPassantableCaptureSpot = false;
 
     public Position(char _xPos, int _yPos)
     {
@@ -144,5 +209,32 @@ public class Position
     {
         xPos = BoardManager.PosIntToChar(_x);
         yPos = _y;
+    }
+
+    public void SetAsCastleSpot()
+    {
+        isCastlePosition = true;
+    }
+
+    public void SetAsEnPassantSpot()
+    {
+        isEnPassantableSpot = true;
+    }
+    public void SetAsEnPassantCaptureSpot()
+    {
+        isEnPassantableCaptureSpot = true;
+    }
+
+    public override string ToString()
+    {
+        return xPos.ToString() + yPos.ToString();
+    }
+
+    public bool Equals(Position position)
+    {
+        if(this.xPos == position.xPos && this.yPos == position.yPos)
+            return true;
+        else 
+            return false;
     }
 }

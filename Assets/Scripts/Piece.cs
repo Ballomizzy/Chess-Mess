@@ -12,6 +12,8 @@ public class Piece
     public PieceController controller;
     public int moves = 0;
     public bool isEnPassantable;
+    private Position simulateMoveWithException = null,
+                     simulateMoveWithOccupiedPosition = null;
 
     public void SetValues(PiecesType _piecesType, PieceColor _pieceColor, GameObject _pieceGameObject, Position _startPosition)
     {
@@ -21,8 +23,30 @@ public class Piece
         startPosition = _startPosition;
     }
 
-    public Move Move()
+    public Move SimulateMove()
     {
+        switch (pieceType)
+        {
+            case PiecesType.Pawn:
+                return pawnMove();
+            case PiecesType.Rook:
+                return rookMove();
+            case PiecesType.Knight:
+                return knightMove();
+            case PiecesType.Bishop:
+                return bishopMove();
+            case PiecesType.Queen:
+                return queenMove();
+            case PiecesType.King:
+                return kingMove();
+            default:
+                return new Move();
+        }
+    }
+    public Move SimulateMove(Position positionException, Position newFakeOccupiedPosition)
+    {
+        simulateMoveWithException = positionException;
+        simulateMoveWithOccupiedPosition = newFakeOccupiedPosition;
         switch (pieceType)
         {
             case PiecesType.Pawn:
@@ -76,13 +100,22 @@ public class Piece
             {
                 captureMoves.Add(newPos);
                 //check if spot is occupied by opponent or else remove it
+                //also check if the position is an exception position
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
 
-                if (!boardPosition.isOccupied)
-                    captureMoves.Remove(newPos);
+                if (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos)))
+                {
 
-                else if (boardPosition.occupantColor == pieceColor)
-                    captureMoves.Remove(newPos);
+                    if (!boardPosition.isOccupied || (boardPosition.occupantColor == pieceColor || boardPosition.occupantColor == PieceColor.Empty)) 
+                        captureMoves.Remove(newPos);
+                    //check if spot behind the capture spot is an enpassantable spot
+                    
+                    if (BoardManager.GetBoardTile(new Position(xPos, yPos - sign)).isEnPassantableSpot && pieceGameObject.GetComponentInParent<ColorPiecesManager>().hasEnpassantable)
+                    {
+                        captureMoves.Add(newPos);
+                        newPos.SetAsEnPassantCaptureSpot();
+                    }
+                }
             }
         }
 
@@ -100,6 +133,27 @@ public class Piece
                 if (!(xPos < 1 || xPos > 8 || yPos < 1 || yPos > 8))
                 {
                     maxMoves.Add(newPos);
+                    //When a pawn moves two steps and has a pawn beside it, set the spot as an enpassantable spot
+                    if(xPos > 1)
+                    {
+                        BoardPosition positionAtLeft = BoardManager.GetBoardTile(new Position((xPos - 1), yPos));
+                        if (i == 1 && (positionAtLeft.isOccupied && positionAtLeft.occupantColor != pieceColor && positionAtLeft.occupantType == PiecesType.Pawn))
+                        {
+                            newPos.SetAsEnPassantSpot();
+                            //pieceGameObject.GetComponentInParent<ColorPiecesManager>().HasEnpassantSpot(true);
+                        }
+
+                    }
+                    if(xPos < 8)
+                    {
+                        BoardPosition positionAtRight = BoardManager.GetBoardTile(new Position((xPos + 1), yPos));
+                        if (i == 1 && (positionAtRight.isOccupied && positionAtRight.occupantColor != pieceColor && positionAtRight.occupantType == PiecesType.Pawn))
+                        {
+                            newPos.SetAsEnPassantSpot();
+                            //pieceGameObject.GetComponentInParent<ColorPiecesManager>().HasEnpassantSpot(true);
+                        }
+
+                    }
                 }
 
                 //check if spot is occupied. if so remove it
@@ -121,30 +175,26 @@ public class Piece
             if (!(xPos < 1 || xPos > 8 || yPos < 1 || yPos > 8))
             {
                 maxMoves.Add(newPos);
+                //check if spot is occupied. if so, remove it
+                BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
+                if ((boardPosition.isOccupied))
+                {
+                    maxMoves.Remove(newPos);
+                }
+
+                //Promote pawn
+                if(yPos == 1 || yPos == 8)
+                {
+                    maxMoves.Remove(newPos);
+                    specialMoves.Add(newPos);
+                }
             }
 
-            //check if spot is occupied. if so, remove it
-            BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-            if ((boardPosition.isOccupied))
-            {
-                maxMoves.Remove(newPos);
-            }
-
-            //Promote pawn
-            if(yPos == 1 || yPos == 8)
-            {
-                maxMoves.Remove(newPos);
-                specialMoves.Add(newPos);
-            }
 
         }
 
-        //EnPassant
 
-
-
-    
-
+        simulateMoveWithException = null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
@@ -167,7 +217,6 @@ public class Piece
             if (upEnd)
                 break;
             Position newPos = new Position(piecePosition.xPos, (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
 
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
@@ -178,11 +227,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     upEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -206,11 +256,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     downEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -234,11 +285,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -260,11 +312,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }       
@@ -273,6 +326,7 @@ public class Piece
 
         // Castle
 
+        simulateMoveWithException = simulateMoveWithOccupiedPosition = null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
@@ -327,10 +381,11 @@ public class Piece
                     maxMoves.Add(newPos);
                     //check if spot is occupied. if so remove it
                     BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                    if ((boardPosition.isOccupied))
+                    if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                         && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                     {
                         maxMoves.Remove(newPos);
-                        if (boardPosition.occupantColor != pieceColor)
+                        if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                             captureMoves.Add(newPos);
                     }
                 }
@@ -340,6 +395,7 @@ public class Piece
 
         }
 
+        simulateMoveWithException = simulateMoveWithOccupiedPosition = null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
@@ -355,14 +411,13 @@ public class Piece
 
         //Check possible moves
 
-        //Check up movement
+        //Check left up movement
         for (int i = 0; i < 8; i++)
         {
             //If a spot in it's way is occupied stop checking for spots beyond
             if (leftUpEnd)
                 break;
             Position newPos = new Position((BoardManager.PosCharToInt(piecePosition.xPos) - (i + 1)), (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
 
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
@@ -373,11 +428,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -401,11 +457,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -429,16 +486,17 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
         }
-        //Check right movement
+        //Check left down movement
         for (int i = 0; i < 8; i++)
         {
             //If a spot in it's way is occupied stop checking for spots beyond
@@ -455,16 +513,18 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
         }
 
+        simulateMoveWithException = simulateMoveWithOccupiedPosition = null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
@@ -487,7 +547,6 @@ public class Piece
             if (upEnd)
                 break;
             Position newPos = new Position(piecePosition.xPos, (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
 
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
@@ -498,16 +557,15 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     upEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
-
-
         }
         //Check down movement
         for (int i = 0; i < 8; i++)
@@ -526,11 +584,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     downEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -554,11 +613,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -580,11 +640,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -602,7 +663,6 @@ public class Piece
             if (leftUpEnd)
                 break;
             Position newPos = new Position((BoardManager.PosCharToInt(piecePosition.xPos) - (i + 1)), (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
 
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
@@ -613,11 +673,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -641,16 +702,15 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
-
-
         }
         //Check right up movement
         for (int i = 0; i < 8; i++)
@@ -669,11 +729,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -696,16 +757,18 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                     && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
         }
 
+        simulateMoveWithException = simulateMoveWithOccupiedPosition =  null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
@@ -728,8 +791,7 @@ public class Piece
             if (upEnd)
                 break;
             Position newPos = new Position(piecePosition.xPos, (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
-
+            
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
                 yPos = newPos.yPos;
@@ -739,17 +801,17 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     upEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
-
-
         }
+
         //Check down movement
         for (int i = 0; i < 1; i++)
         {
@@ -767,11 +829,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     downEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -795,11 +858,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -821,11 +885,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -843,7 +908,6 @@ public class Piece
             if (leftUpEnd)
                 break;
             Position newPos = new Position((BoardManager.PosCharToInt(piecePosition.xPos) - (i + 1)), (piecePosition.yPos + (i + 1)));
-            Debug.Log(piecePosition.yPos + " + " + i + " + 1 = " + (piecePosition.yPos + (i + 1)));
 
             //check if spot is on board
             int xPos = BoardManager.PosCharToInt(newPos.xPos),
@@ -854,11 +918,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos))) 
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -882,11 +947,12 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos))) 
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
@@ -910,17 +976,18 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos))) 
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     rightUpEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
         }
 
-        //Check right movement diagonal
+        //Check left movement diagonal
         for (int i = 0; i < 1; i++)
         {
             //If a spot in it's way is occupied stop checking for spots beyond
@@ -937,21 +1004,124 @@ public class Piece
                 maxMoves.Add(newPos);
                 //check if spot is occupied. if so remove it
                 BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
-                if ((boardPosition.isOccupied))
+                if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                    && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
                 {
                     leftDownEnd = true;
                     maxMoves.Remove(newPos);
-                    if (boardPosition.occupantColor != pieceColor)
+                    if (boardPosition.occupantColor != pieceColor || (simulateMoveWithOccupiedPosition != null && (simulateMoveWithOccupiedPosition.Equals(newPos))))
                         captureMoves.Add(newPos);
                 }
             }
         }
 
+        //Castle
+        if (moves == 0 && !(controller.transform.parent.GetComponent<ColorPiecesManager>().isOnCheck))
+        {
+            List<Position> castlePositions = new List<Position>();
+            Position kingPosition = piecePosition;
+            BoardPosition rook1Position = BoardManager.GetBoardTile(new Position(1, kingPosition.yPos));//assuming 1 is always on the left
+            BoardPosition rook2Position = BoardManager.GetBoardTile(new Position(8, kingPosition.yPos));//assuming 8 is always on the right
+            //left castling
+            if (rook1Position.isOccupied && rook1Position.occupantColor == pieceColor && rook1Position.occupantType == PiecesType.Rook 
+                                         &&  rook1Position.pieceOccupant.GetMovesAmount() == 0)
+            {
+                bool isCastlable = true;
+                for(int i = 0; i < 3; i++)
+                {
+                    if (!isCastlable)
+                        break;
+                    Position newPos = new Position((BoardManager.PosCharToInt(piecePosition.xPos) - (i + 1)), (piecePosition.yPos));
+                    castlePositions.Add(newPos);
+                    if(i != 1)
+                    {
+                        castlePositions.Remove(newPos);
+                    }
+                    BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
+                    if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                        && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
+                    {
+                        castlePositions.Remove(newPos);
+                        isCastlable = false;
+                    }
+                }
+                if (isCastlable)
+                {
+                    foreach(Position pos in castlePositions)
+                    {
+                        maxMoves.Add(pos);
+                        pos.SetAsCastleSpot();
+                    }
+                }
+
+            }
+            //right castling
+            if (rook2Position.isOccupied && rook2Position.occupantColor == pieceColor && rook2Position.occupantType == PiecesType.Rook
+                                         && rook2Position.pieceOccupant.GetMovesAmount() == 0)
+            {
+                bool isCastlable = true;
+                for (int i = 0; i < 2; i++)
+                {
+                    if (!isCastlable)
+                        break;
+                    Position newPos = new Position((BoardManager.PosCharToInt(piecePosition.xPos) + (i + 1)), (piecePosition.yPos));
+                    castlePositions.Add(newPos);
+                    if (i != 1)
+                    {
+                        castlePositions.Remove(newPos);
+                    }
+                    BoardPosition boardPosition = BoardManager.GetBoardTile(newPos);
+                    if ((boardPosition.isOccupied || (simulateMoveWithOccupiedPosition != null && simulateMoveWithOccupiedPosition.Equals(newPos)))
+                        && (simulateMoveWithException == null || (!simulateMoveWithException.Equals(newPos))))
+                    {
+                        castlePositions.Remove(newPos);
+                        isCastlable = false;
+                    }
+                }
+                if (isCastlable)
+                {
+                    foreach (Position pos in castlePositions)
+                    {
+                        maxMoves.Add(pos);
+                        pos.SetAsCastleSpot();
+                    }
+                }
+
+            }
+
+
+        }
+
+        simulateMoveWithException = simulateMoveWithOccupiedPosition = null;
         Move newMove = new Move(maxMoves.ToArray(), captureMoves.ToArray(), specialMoves.ToArray());
         return newMove;
     }
 
+    public Check IsCheckingOpponent()
+    {
+        Move newMove = SimulateMove();
+        Position[] positions = newMove.captureMoves;
+        //Check if the piece can capture the opponents king
+        for(int i = 0; i < positions.Length; i++)
+        {
+            BoardPosition boardPos = BoardManager.GetBoardTile(positions[i]);
+            if (boardPos.occupantType == PiecesType.King && boardPos.occupantColor != pieceColor)
+                return new Check(positions[i], true);
+        }
+        return new Check(null, false);
+    }
+}
 
+public struct Check
+{
+    public bool isChecking;
+    public Position checkPosition;
+
+    public Check(Position _checkPosition, bool _isChecking)
+    {
+        isChecking = _isChecking;
+        checkPosition = _checkPosition;
+    }
 }
 
 
@@ -967,4 +1137,14 @@ public struct Move
         specialMoves = _specialMoves;
     }
 
+}
+
+public enum SpecialMoveType
+{
+    EnPassant, Castle, Promotion
+}
+public struct SpecialMove
+{
+    public SpecialMoveType specialMoveType;
+    Position specialMovablePosition;
 }
