@@ -10,7 +10,7 @@ public class PieceController : MonoBehaviour
     private PiecesManager piecesManager;
     private ColorPiecesManager colorPiecesManager;
 
-    Position currrentPosition, endPositionPos;
+    Position currentPositionPos, endPositionPos;
     Vector3 positionToMoveTo, currentPosition;
     private bool isPositionSet, isMoving;
 
@@ -38,7 +38,7 @@ public class PieceController : MonoBehaviour
     {
         if (!isPositionSet)
         {
-            currrentPosition = position;
+            currentPositionPos = position;
             isPositionSet = true;
         }
     }
@@ -51,7 +51,7 @@ public class PieceController : MonoBehaviour
         BoardPosition newBoardPosition = BoardManager.GetBoardTile(position);
         newBoardPosition.OccupyBoardTile(pieceClass.pieceColor, pieceClass.pieceType, this);
         
-        BoardPosition oldBoardPosition = BoardManager.GetBoardTile(currrentPosition);
+        BoardPosition oldBoardPosition = BoardManager.GetBoardTile(currentPositionPos);
         oldBoardPosition.DeOccupyBoardTile();
 
 
@@ -69,7 +69,7 @@ public class PieceController : MonoBehaviour
     {
         //yield return new WaitForSeconds(1f);
         isMoving = false;
-        currrentPosition = endPositionPos;
+        currentPositionPos = endPositionPos;
         endPositionPos = null;
         moves++;
         UpdatePieceClassData();
@@ -170,7 +170,7 @@ public class PieceController : MonoBehaviour
 
     public void UpdatePieceClassData()
     {
-        pieceClass.piecePosition = currrentPosition;
+        pieceClass.piecePosition = currentPositionPos;
         pieceClass.moves = moves;
         if (!pieceClass.controller)
         {
@@ -207,7 +207,7 @@ public class PieceController : MonoBehaviour
                 //Simulate moves for each opponent piece as if the current piece has moved
                 Move simulatedMoves = piecesColorContainer.GetChild(x).GetComponent<PieceController>().pieceClass.SimulateMove
                 (
-                    currrentPosition, prospectiveMoves.movablePositions[i]
+                    currentPositionPos, prospectiveMoves.movablePositions[i]
                 );
 
                 List<Position> capturePositions = new List<Position>();
@@ -232,8 +232,10 @@ public class PieceController : MonoBehaviour
                         for (int y = 0; y < prospectiveMoves.movablePositions.Length; y++)
                         {
                             //if a king's castle path is on check, remove the castle position
-                            if((BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) + 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos)
-                                || (BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) - 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos))
+
+                            if((currentPositionPos.yPos == prospectiveMoves.movablePositions[y].yPos) 
+                                && ((BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) + 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos)
+                                || (BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) - 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos)))
                             {
                                 badPositions.Add(prospectiveMoves.movablePositions[y]);
                             }
@@ -267,7 +269,7 @@ public class PieceController : MonoBehaviour
                 //Simulate moves for each opponent piece as if the current piece has moved
                 Move simulatedMoves = piecesColorContainer.GetChild(x).GetComponent<PieceController>().pieceClass.SimulateMove
                 (
-                    currrentPosition, prospectiveMoves.captureMoves[i]
+                    currentPositionPos, prospectiveMoves.captureMoves[i]
                 );
 
                 List<Position> capturePositions = new List<Position>();
@@ -282,7 +284,7 @@ public class PieceController : MonoBehaviour
                     if ((boardPos.occupantType == PiecesType.King && boardPos.occupantColor == pieceClass.pieceColor) 
                         || this.pieceClass.pieceType == PiecesType.King && prospectiveMoves.captureMoves[i].Equals(capturePositions[j]))
                     {
-                        if (!(piecesColorContainer.GetChild(x).GetComponent<PieceController>().currrentPosition.Equals(prospectiveMoves.captureMoves[i])))
+                        if (!(piecesColorContainer.GetChild(x).GetComponent<PieceController>().currentPositionPos.Equals(prospectiveMoves.captureMoves[i])))
                             badPositions.Add(prospectiveMoves.captureMoves[i]);                         
                             //return true;
                     }
@@ -352,7 +354,7 @@ public class PieceController : MonoBehaviour
     {
         if (gameManager.currentColorTurn == pieceClass.pieceColor)
         {
-            boardManager.SelectTile(currrentPosition);
+            boardManager.SelectTile(currentPositionPos);
             Move validMove = MakeValidMove();
             //boardManager.HighlightTiles(moves.movablePositions, moves.captureMoves);
             boardManager.HighlightTiles(validMove.movablePositions, validMove.captureMoves, validMove.specialMoves);
