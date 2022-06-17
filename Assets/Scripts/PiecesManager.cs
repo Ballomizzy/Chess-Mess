@@ -240,6 +240,99 @@ public class PiecesManager : MonoBehaviour
             WhitePieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
         }
     }
+
+    public void PromotePawn(BoardPosition positionOfPawn, PiecesType pieceToPromoteTo)
+    {
+        PieceColor pieceColor;
+        pieceColor = positionOfPawn.occupantColor;
+        GameObject previousPawnPiece = positionOfPawn.pieceOccupant.gameObject;
+        if (pieceColor == PieceColor.Black)
+        {
+            BlackPieces.Remove(positionOfPawn.pieceOccupant.GetPieceClass());
+            Piece newPiece = new Piece();
+            PieceController pieceController;
+            GameObject pieceToInstantiate = null;
+            BlackPieces.Add(newPiece);
+            Position position = positionOfPawn.GetBoardPosition();
+            switch (pieceToPromoteTo)
+            {
+                case PiecesType.Queen:
+                    pieceToInstantiate = Instantiate(queenBlackGO, transform);
+                    newPiece.SetValues(PiecesType.Queen, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Bishop:
+                    pieceToInstantiate = Instantiate(bishopBlackGO, transform);
+                    newPiece.SetValues(PiecesType.Bishop, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Knight:
+                    pieceToInstantiate = Instantiate(knightBlackGO, transform);
+                    newPiece.SetValues(PiecesType.Knight, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Rook:
+                    pieceToInstantiate = Instantiate(rookBlackGO, transform);
+                    newPiece.SetValues(PiecesType.Rook, pieceColor, pieceToInstantiate, position);
+                    break;
+                default:
+                    break;
+            }
+            pieceToInstantiate.transform.SetParent(BlackPiecesContainer);
+            if (pieceToInstantiate.GetComponent<PieceController>() != null)
+            {
+                pieceController = pieceToInstantiate.GetComponent<PieceController>();
+                pieceController.InitPiece(newPiece);
+                newPiece.controller = pieceController;
+            }
+            BoardPosition boardTile = BoardManager.GetBoardTile(position);
+            boardTile.OccupyBoardTile(PieceColor.Black, newPiece.pieceType, newPiece.controller);
+
+            Vector3 boardTilePos = boardTile.transform.position;
+            newPiece.pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
+        }
+        if (pieceColor == PieceColor.White)
+        {
+            WhitePieces.Remove(positionOfPawn.pieceOccupant.GetPieceClass());
+            Piece newPiece = new Piece();
+            PieceController pieceController;
+            GameObject pieceToInstantiate = null;
+            WhitePieces.Add(newPiece);
+            Position position = positionOfPawn.GetBoardPosition();
+            switch (pieceToPromoteTo)
+            {
+                case PiecesType.Queen:
+                    pieceToInstantiate = Instantiate(queenWhiteGO, transform);
+                    newPiece.SetValues(PiecesType.Queen, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Bishop:
+                    pieceToInstantiate = Instantiate(bishopWhiteGO, transform);
+                    newPiece.SetValues(PiecesType.Bishop, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Knight:
+                    pieceToInstantiate = Instantiate(knightWhiteGO, transform);
+                    newPiece.SetValues(PiecesType.Knight, pieceColor, pieceToInstantiate, position);
+                    break;
+                case PiecesType.Rook:
+                    pieceToInstantiate = Instantiate(rookWhiteGO, transform);
+                    newPiece.SetValues(PiecesType.Rook, pieceColor, pieceToInstantiate, position);
+                    break;
+                default:
+                    break;
+
+            }
+            pieceToInstantiate.transform.SetParent(WhitePiecesContainer);
+            if (pieceToInstantiate.GetComponent<PieceController>() != null)
+            {
+                pieceController = pieceToInstantiate.GetComponent<PieceController>();
+                pieceController.InitPiece(newPiece);
+                newPiece.controller = pieceController;
+            }
+            BoardPosition boardTile = BoardManager.GetBoardTile(position);
+            boardTile.OccupyBoardTile(PieceColor.White, newPiece.pieceType, newPiece.controller);
+
+            Vector3 boardTilePos = boardTile.transform.position;
+            newPiece.pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
+        }
+        Destroy(previousPawnPiece);
+    }
     
     public void SetColorOnCheck(PieceColor color)
     {

@@ -189,8 +189,6 @@ public class Piece
                     specialMoves.Add(newPos);
                 }
             }
-
-
         }
 
 

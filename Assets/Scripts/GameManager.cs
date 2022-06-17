@@ -34,6 +34,32 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void MakeAllPiecesUnSelectable(bool yes)
+    {
+        if (yes)
+        {
+            blackManager.MakeChildrenSelectable(false);
+            whiteManager.MakeChildrenSelectable(false);
+        }
+        else
+        {
+            switch (currentColorTurn)
+            {
+                case PieceColor.White:
+                    whiteManager.MakeChildrenSelectable(true);
+                    blackManager.MakeChildrenSelectable(false);
+                    break;
+                case PieceColor.Black:
+                    blackManager.MakeChildrenSelectable(true);
+                    whiteManager.MakeChildrenSelectable(false); 
+                   break;
+                default:
+                    break;
+            }
+        }
+
+    }
+
     public void CheckMate(PieceColor pieceThatLost)
     {
         switch (pieceThatLost)

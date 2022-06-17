@@ -55,6 +55,7 @@ public class BoardPosition : MonoBehaviour
 
     private GameManager gameManager;
     private Renderer rend;
+    private PawnPromotionMenuScript pawnPromotion;
 
 
     private void Awake()
@@ -62,6 +63,7 @@ public class BoardPosition : MonoBehaviour
         gameManager = FindObjectOfType<GameManager>();
         rend = GetComponent<Renderer>();
         boardManager = FindObjectOfType<BoardManager>();
+        pawnPromotion = FindObjectOfType<PawnPromotionMenuScript>();
     }
 
     public void SetBoardPositionColor(Color color)
@@ -134,6 +136,7 @@ public class BoardPosition : MonoBehaviour
                 previousPieceOccupant = pieceOccupant;
             }
             isOccupied = true;
+            int yPosValue = boardPosition.yPos;
 
             if (isCastleSpot)
             {
@@ -173,6 +176,12 @@ public class BoardPosition : MonoBehaviour
                     boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, false);
                 }
                 pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
+            }
+            //Pawn Promotion
+            else if((yPosValue == 8 || yPosValue == 1) && boardManager.selectedTileCtrl.occupantType == PiecesType.Pawn)
+            {
+                pawnPromotion.ShowMenu(boardManager.selectedTileCtrl.occupantColor, boardPosition);
+                boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, isCaptureSpot);
             }
             else
             {
