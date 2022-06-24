@@ -18,6 +18,7 @@ public class PiecesManager : MonoBehaviour
                        queenBlackGO, queenWhiteGO,
                        kingBlackGO, kingWhiteGO;
 
+    private const float pieceYOffset = 0.1f;
 
     [SerializeField]
     List<Piece> BlackPieces = new List<Piece>();
@@ -228,7 +229,7 @@ public class PiecesManager : MonoBehaviour
             boardTile.OccupyBoardTile(PieceColor.Black, BlackPieces[i].pieceType, BlackPieces[i].controller);
 
             Vector3 boardTilePos = boardTile.transform.position;
-            BlackPieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
+            BlackPieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + pieceYOffset, boardTilePos.z);
         }
         //Set White Pieces
         for(int i = 0; i < WhitePieces.Count; i++)
@@ -237,7 +238,7 @@ public class PiecesManager : MonoBehaviour
             boardTile.OccupyBoardTile(PieceColor.White, WhitePieces[i].pieceType, WhitePieces[i].controller);
 
             Vector3 boardTilePos = boardTile.transform.position;  
-            WhitePieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + 0.2f, boardTilePos.z);
+            WhitePieces[i].pieceGameObject.transform.position = new Vector3(boardTilePos.x, boardTilePos.y + pieceYOffset, boardTilePos.z);
         }
     }
 

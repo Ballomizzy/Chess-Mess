@@ -79,7 +79,7 @@ public class GameManager : MonoBehaviour
         gameUI.DisplayStaleMate();
     }
 
-    private void Awake()
+    private void Start()
     {        
         startColor = gameSettings.firstMoveColor;
         currentColorTurn = startColor;
