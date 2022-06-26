@@ -9,6 +9,7 @@ public class PieceController : MonoBehaviour
     private BoardManager boardManager;
     private PiecesManager piecesManager;
     private ColorPiecesManager colorPiecesManager;
+    private MoveLogsManager moveLogsManager;
 
     Position currentPositionPos, endPositionPos;
     Vector3 positionToMoveTo, currentPosition;
@@ -33,6 +34,7 @@ public class PieceController : MonoBehaviour
     }
     [SerializeField]
     private float pieceMoveSpeed = 10f;
+    private bool isCastleMove = false;
 
     public void InitPosition(Position position)
     {
@@ -64,6 +66,27 @@ public class PieceController : MonoBehaviour
         }
 
     }
+    public void MovePiece(Position position, bool isCapturingMove, bool _isCastleMove)
+    {
+
+        positionToMoveTo = boardManager.GetBoardTilePos(position);
+
+        BoardPosition newBoardPosition = BoardManager.GetBoardTile(position);
+        newBoardPosition.OccupyBoardTile(pieceClass.pieceColor, pieceClass.pieceType, this);
+
+        BoardPosition oldBoardPosition = BoardManager.GetBoardTile(currentPositionPos);
+        oldBoardPosition.DeOccupyBoardTile();
+
+        isCastleMove = _isCastleMove;
+        isMoving = true;
+        endPositionPos = position;
+        if (isCapturingMove)
+        {
+            //Cpature animation
+            BoardManager.GetBoardTile(position).previousPieceOccupant.GoToJail();
+        }
+
+    }
 
     private void StopMoving()
     {
@@ -74,7 +97,12 @@ public class PieceController : MonoBehaviour
         moves++;
         UpdatePieceClassData();
         CheckIfChecking();
-        gameManager.SwitchTurn();
+        if (!isCastleMove)
+        {
+            gameManager.SwitchTurn();
+        }
+        else
+            isCastleMove = false;
         //Check if checking opponnent king
     }
     public void MoveAnimation(Vector3 position)
@@ -119,10 +147,16 @@ public class PieceController : MonoBehaviour
                 case PieceColor.Black:
                     piecesManager.SetColorOnCheck(PieceColor.White);
                     boardManager.SetCheckTile(checkData.checkPosition, true);
+                    MoveLogsManager.MoveLogInfo lastInfo = moveLogsManager.lastInfo;
+                    MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(lastInfo.piece, lastInfo.oldPos, lastInfo.newPos, true, lastInfo.isCheckMate, lastInfo.isCapture, lastInfo.isPromote, lastInfo.promotePiece, lastInfo.isKingSideCastle, lastInfo.isQueenSideCastle);
+                    moveLogsManager.lastEdittedLogText.text = moveLogsManager.MoveLogText(info);
                     break;
                 case PieceColor.White:
                     piecesManager.SetColorOnCheck(PieceColor.Black);
                     boardManager.SetCheckTile(checkData.checkPosition, true);
+                    MoveLogsManager.MoveLogInfo lastInfo1 = moveLogsManager.lastInfo;
+                    MoveLogsManager.MoveLogInfo info1 = new MoveLogsManager.MoveLogInfo(lastInfo1.piece, lastInfo1.oldPos, lastInfo1.newPos, true, lastInfo1.isCheckMate, lastInfo1.isCapture, lastInfo1.isPromote, lastInfo1.promotePiece, lastInfo1.isKingSideCastle, lastInfo1.isQueenSideCastle);
+                    moveLogsManager.lastEdittedLogText.text = moveLogsManager.MoveLogText(info1);
                     break;
                 default:
                     break;
@@ -136,6 +170,7 @@ public class PieceController : MonoBehaviour
         boardManager = FindObjectOfType<BoardManager>();
         piecesManager = FindObjectOfType<PiecesManager>();
         colorPiecesManager = FindObjectOfType<ColorPiecesManager>();
+        moveLogsManager = FindObjectOfType<MoveLogsManager>();
     }
     private void Start()
     {
@@ -229,15 +264,15 @@ public class PieceController : MonoBehaviour
                     //if King, try to check if any piece can stop castling by checking the castling path
                     if (pieceClass.pieceType == PiecesType.King && moves == 0 && !colorPiecesManager.isOnCheck)
                     {
-                        for (int y = 0; y < prospectiveMoves.movablePositions.Length; y++)
+                        for (int y = 0; y < badPositions.Count; y++)
                         {
                             //if a king's castle path is on check, remove the castle position
 
-                            if((currentPositionPos.yPos == prospectiveMoves.movablePositions[y].yPos) 
-                                && ((BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) + 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos)
-                                || (BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos) - 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[y].xPos)))
+                            if((currentPositionPos.yPos == prospectiveMoves.movablePositions[i].yPos) 
+                                && ((BoardManager.PosCharToInt(badPositions[y].xPos) + 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos)
+                                || (BoardManager.PosCharToInt(badPositions[y].xPos) - 1) == BoardManager.PosCharToInt(prospectiveMoves.movablePositions[i].xPos)))
                             {
-                                badPositions.Add(prospectiveMoves.movablePositions[y]);
+                                badPositions.Add(prospectiveMoves.movablePositions[i]);
                             }
 
                         }

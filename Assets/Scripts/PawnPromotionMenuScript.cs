@@ -12,6 +12,7 @@ public class PawnPromotionMenuScript : MonoBehaviour
     private GameObject iconsHolder;
 
     public Position promotionSpot { get; private set; }
+    public Position prevPos { get; private set; }
 
 
     [SerializeField]
@@ -32,9 +33,10 @@ public class PawnPromotionMenuScript : MonoBehaviour
     {
         HideMenu();
     }
-    public void ShowMenu(PieceColor pieceColor, Position position)
+    public void ShowMenu(PieceColor pieceColor, Position position, Position _prevPos)
     {
         promotionSpot = position;
+        prevPos = _prevPos;
         iconsHolder.SetActive(true);
         gameManager.MakeAllPiecesUnSelectable(true);
         Vector3 vector3 = boardManager.GetBoardTilePos(position);

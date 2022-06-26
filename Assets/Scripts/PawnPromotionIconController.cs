@@ -9,16 +9,20 @@ public class PawnPromotionIconController : MonoBehaviour
 
     private PiecesManager pieceManager;
     private PawnPromotionMenuScript pawnPromotionMenuScript;
+    private MoveLogsManager moveLogsManager;
 
     private void Awake()
     {
         pieceManager = FindObjectOfType<PiecesManager>();
         pawnPromotionMenuScript = FindObjectOfType<PawnPromotionMenuScript>();
+        moveLogsManager = FindObjectOfType<MoveLogsManager>();
     }
 
     private void OnMouseDown()
     {
         pieceManager.PromotePawn(BoardManager.GetBoardTile(pawnPromotionMenuScript.promotionSpot), pieceType);
+        MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(PiecesType.Pawn, pawnPromotionMenuScript.prevPos, pawnPromotionMenuScript.promotionSpot, false, false, false, true, PiecesType.King, false, false);
+        moveLogsManager.MakeMoveLog(info);
         pawnPromotionMenuScript.HideMenu();
     }
 }

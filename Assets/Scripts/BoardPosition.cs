@@ -39,6 +39,7 @@ public class BoardPosition : MonoBehaviour
     public PieceController pieceOccupant { get; private set; }
     public PieceController previousPieceOccupant { get; private set; }
 
+
     public void OccupyBoardTile(PieceColor _occupanntColor, PiecesType _pieceType ,PieceController _pieceController)
     {
         isOccupied = true;
@@ -56,6 +57,7 @@ public class BoardPosition : MonoBehaviour
     private GameManager gameManager;
     private Renderer rend;
     private PawnPromotionMenuScript pawnPromotion;
+    private MoveLogsManager moveLogsManager;
 
 
     private void Awake()
@@ -64,6 +66,7 @@ public class BoardPosition : MonoBehaviour
         rend = GetComponent<Renderer>();
         boardManager = FindObjectOfType<BoardManager>();
         pawnPromotion = FindObjectOfType<PawnPromotionMenuScript>();
+        moveLogsManager = FindObjectOfType<MoveLogsManager>();
     }
 
     public void SetBoardPositionColor(Color color)
@@ -85,7 +88,6 @@ public class BoardPosition : MonoBehaviour
         char c = ' ';
         switch (x)
         {
-
             case 1:
                 c = 'a';
                 break;
@@ -138,24 +140,34 @@ public class BoardPosition : MonoBehaviour
             isOccupied = true;
             int yPosValue = boardPosition.yPos;
 
+            //Castle
             if (isCastleSpot)
             {
                 int yPosForCastle = boardManager.selectedTileCtrl.pieceOccupant.GetPieceClass().piecePosition.yPos;
+                Position kingPosition;
+                bool isKingSideCastle = false, isQueenSideCastle = false;
                 if(BoardManager.PosCharToInt(boardPosition.xPos) > 5)
                 {
-                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(new Position('g', yPosForCastle), false);
+                    isKingSideCastle = true;
+                    kingPosition = new Position('g', yPosForCastle);
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(kingPosition, false, true);
                     BoardPosition rookBoardPos = BoardManager.GetBoardTile(new Position('h', yPosForCastle));
                     rookBoardPos.pieceOccupant.MovePiece(new Position('f', yPosForCastle), false);
                 }
                 else
                 {
-                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(new Position('c', yPosForCastle), false);
+                    isQueenSideCastle = true;
+                    kingPosition = new Position('c', yPosForCastle);
+                    boardManager.selectedTileCtrl.pieceOccupant.MovePiece(kingPosition, false, true);
                     BoardPosition rookBoardPos = BoardManager.GetBoardTile(new Position('a', yPosForCastle));
                     rookBoardPos.pieceOccupant.MovePiece(new Position('d', yPosForCastle), false);
                 }
                 pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
-                gameManager.SwitchTurn();
+                MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(boardManager.selectedTileCtrl.occupantType, boardManager.selectedTileCtrl.boardPosition, kingPosition, false, false, false, false, PiecesType.King, isKingSideCastle, isQueenSideCastle);
+                moveLogsManager.MakeMoveLog(info);
+                //gameManager.SwitchTurn();
             }
+            //EnPassant
             else if (isEnPassantableCaptureSpot)
             {
                 isEnPassantableCaptureSpot = false;
@@ -167,6 +179,8 @@ public class BoardPosition : MonoBehaviour
                     aboveCaptureSpot.pieceOccupant.GoToJail();
                     aboveCaptureSpot.DeOccupyBoardTile();
                     boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, false);
+                    MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(boardManager.selectedTileCtrl.occupantType, boardManager.selectedTileCtrl.boardPosition, aboveCaptureSpot.boardPosition, false, false, true, false, PiecesType.King, false, false);
+                    moveLogsManager.MakeMoveLog(info);
                 }
                 if (belowCaptureSpot.isEnPassantableSpot && belowCaptureSpot.occupantColor != occupantColor
                                                          && belowCaptureSpot.occupantType == PiecesType.Pawn && belowCaptureSpot.pieceOccupant.GetPieceClass().moves == 1)
@@ -174,19 +188,23 @@ public class BoardPosition : MonoBehaviour
                     belowCaptureSpot.pieceOccupant.GoToJail();
                     belowCaptureSpot.DeOccupyBoardTile();
                     boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, false);
+                    MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(boardManager.selectedTileCtrl.occupantType, boardManager.selectedTileCtrl.boardPosition, belowCaptureSpot.boardPosition, false, false, true, false, PiecesType.King, false, false);
+                    moveLogsManager.MakeMoveLog(info);
                 }
                 pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
             }
             //Pawn Promotion
             else if((yPosValue == 8 || yPosValue == 1) && boardManager.selectedTileCtrl.occupantType == PiecesType.Pawn)
             {
-                pawnPromotion.ShowMenu(boardManager.selectedTileCtrl.occupantColor, boardPosition);
+                pawnPromotion.ShowMenu(boardManager.selectedTileCtrl.occupantColor, boardPosition, boardManager.selectedTileCtrl.boardPosition);
                 boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, isCaptureSpot);
             }
             else
             {
                 boardManager.selectedTileCtrl.pieceOccupant.MovePiece(boardPosition, isCaptureSpot);
                 pieceOccupant.transform.parent.GetComponent<ColorPiecesManager>().SetKingCheckStatus(false);
+                MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(boardManager.selectedTileCtrl.occupantType, boardManager.selectedTileCtrl.boardPosition, boardPosition, false, false, isCaptureSpot, false, PiecesType.King, false, false);
+                moveLogsManager.MakeMoveLog(info);
             }
             pieceOccupant.GetComponentInParent<ColorPiecesManager>().HasEnpassantSpot(false);
             boardManager.DeHighlightTiles();

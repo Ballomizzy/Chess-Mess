@@ -1,18 +1,32 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
 
 public class MoveLogUI : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+    [SerializeField]
+    private TextMeshProUGUI LogNumber;
+    [SerializeField]
+    public TextMeshProUGUI FirstMoveLog;
+    [SerializeField]
+    public TextMeshProUGUI SecondMoveLog;
+    [SerializeField]
+    private Image gameLogImage;
+    [SerializeField]
+    private Color32 darkColor = new Color32(100, 100, 100, 225),
+                  lightColor = new Color32(70, 70, 70, 225);
 
-    // Update is called once per frame
-    void Update()
+    public void SetLogDetails(int logNumber, string firstMoverLog, string secondMoverLog)
     {
-        
+        LogNumber.text = logNumber.ToString() + ".";
+        FirstMoveLog.text = firstMoverLog;
+        SecondMoveLog.text = secondMoverLog;
+        if (logNumber % 2 == 0)
+            gameLogImage.color = darkColor;
+        else
+            gameLogImage.color = lightColor;
     }
 }

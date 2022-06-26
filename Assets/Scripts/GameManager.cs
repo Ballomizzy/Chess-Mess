@@ -13,6 +13,8 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     private ColorPiecesManager whiteManager, blackManager;
+
+    private MoveLogsManager moveLogsManager;
     public void SwitchTurn()
     {
         switch (currentColorTurn)
@@ -66,9 +68,15 @@ public class GameManager : MonoBehaviour
         {
             case PieceColor.White:
                 gameUI.DisplayWinner(PieceColor.Black);
+                MoveLogsManager.MoveLogInfo lastInfo = moveLogsManager.lastInfo;
+                MoveLogsManager.MoveLogInfo info = new MoveLogsManager.MoveLogInfo(lastInfo.piece, lastInfo.oldPos, lastInfo.newPos, lastInfo.isCheck, true, lastInfo.isCapture, lastInfo.isPromote, lastInfo.promotePiece, lastInfo.isKingSideCastle, lastInfo.isQueenSideCastle);
+                moveLogsManager.lastEdittedLogText.text = moveLogsManager.MoveLogText(info);
                 break;
             case PieceColor.Black:
                 gameUI.DisplayWinner(PieceColor.White);
+                MoveLogsManager.MoveLogInfo lastInfo1 = moveLogsManager.lastInfo;
+                MoveLogsManager.MoveLogInfo info1 = new MoveLogsManager.MoveLogInfo(lastInfo1.piece, lastInfo1.oldPos, lastInfo1.newPos, lastInfo1.isCheck, true, lastInfo1.isCapture, lastInfo1.isPromote, lastInfo1.promotePiece, lastInfo1.isKingSideCastle, lastInfo1.isQueenSideCastle);
+                moveLogsManager.lastEdittedLogText.text = moveLogsManager.MoveLogText(info1);
                 break;
             default:
                 break;
@@ -83,5 +91,6 @@ public class GameManager : MonoBehaviour
     {        
         startColor = gameSettings.firstMoveColor;
         currentColorTurn = startColor;
+        moveLogsManager = FindObjectOfType<MoveLogsManager>();
     }
 }
